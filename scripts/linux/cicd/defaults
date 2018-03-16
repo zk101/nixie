@@ -1,0 +1,10 @@
+#
+# CICD Vars - These values are used by scripts outside this repositories script folder. Do not delete any values here.
+#
+BUILD_FOLDER_ROOT="github.com/zk101/nixie"
+
+#
+# Add Custom vars below this point
+#
+
+# EOF

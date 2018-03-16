@@ -1,0 +1,14 @@
+// WSmsg
+syntax = "proto3";
+
+// PingPong
+message PingPong {
+  enum PingPong {
+    PING = 0;
+    PONG = 1;
+  }
+  PingPong ping_pong = 1;
+  string sequence = 2;
+}
+
+// EOF

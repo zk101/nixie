@@ -1,0 +1,80 @@
+# auth dev TOML Config File
+[CBpool]
+Min = 1
+Max = 10
+QueueSize = 10
+Timeout = 50
+Expiry = 30
+
+[CBpresence]
+Cluster = "couchbase://localhost"
+Bucket = "nixiePresenceDev"
+User = "nixie"
+Pass = "password"
+
+[Consul]
+Address = "localhost:8500"
+Scheme = "http"
+Datacenter = "global"
+Token = ""
+
+[Controls]
+AuthTimeout = 5
+CAcertPath = ""
+OverrideConsul = false
+OverrideEnv = false
+PrefixConsul = "nixie/dev/auth/v1"
+PrefixEnv = "NIXIEAUTH"
+PresenceExpiry = 300
+ServiceConsul = true
+ServiceName = "nixie-auth"
+ServiceAddrFilter = "^((10\\.)|(192\\.168\\.)|(172\\.1[6-9]\\.)|(172\\.2[0-9]\\.)|(172\\.3[0-1]\\.))"
+ServiceTags = "env=dev"
+
+[HTTPD]
+Port = 10001
+Keepalive = false
+SSL = false
+SSLkey = ""
+SSLcert = ""
+
+[LDAPpool]
+Min = 1
+Max = 10
+QueueSize = 10
+Timeout = 50
+Expiry = 30
+
+[LDAPro]
+Host = "localhost"
+Port = 636
+User = "cn=bind_nixie_ro,ou=system,dc=dummy,dc=org"
+Pass = "password"
+Base = "ou=nixie_dev,dc=dummy,dc=org"
+SSL = true
+
+[LDAPrw]
+Host = "localhost"
+Port = 636
+User = "cn=bind_nixie_rw,ou=system,dc=dummy,dc=org"
+Pass = "password"
+Base = "ou=nixie_dev,dc=dummy,dc=org"
+SSL = true
+
+[Log]
+Method = "gelf"
+LogLevel = "warn"
+ConsoleColour = false
+StackTrace = true
+StackTraceLevel = "error"
+Filename = "/tmp/testlog.file"
+FileMaxSize = 100
+FileMaxBackup = 5
+FileMaxAge = 5
+GELFhost = "localhost"
+GELFport = 12202
+GELFmaxChunkSize = 8154
+GELFcompression = "none"
+GELFappID = "auth"
+
+# EOF

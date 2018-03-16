@@ -1,0 +1,209 @@
+package couchbase_test
+
+import (
+	"log"
+	"os"
+	"testing"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/zk101/nixie/lib/couchbase"
+)
+
+// Globals
+var (
+	config *couchbase.Config
+	client *couchbase.Client
+)
+
+// Data provides a test struct
+type Data struct {
+	Key  string
+	Data string
+}
+
+// NewKey returns a uuid string
+func NewKey() string {
+	return uuid.NewV4().String()
+}
+
+// TestMain wraps all the tests and does setup things
+func TestMain(m *testing.M) {
+	config = &couchbase.Config{
+		Cluster: "couchbase://localhost",
+		Bucket:  "TestBucket",
+		Pass:    "password",
+	}
+
+	client = couchbase.NewClient(config)
+	if err := client.Connect(); err != nil {
+		//log.Fatalf("client connect failed: %s\n", err.Error())
+		log.Printf("Couchbase failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+	defer client.Close()
+
+	os.Exit(m.Run())
+}
+
+// BenchmarkGet tests the Get functionality
+func BenchmarkGet(b *testing.B) {
+	data := &Data{
+		Key:  NewKey(),
+		Data: "GetData",
+	}
+
+	cas, err := client.Insert(data.Key, data, 300)
+	if err != nil {
+		b.Fatalf("BenchmarkGet Insert failed: %s\n", err.Error())
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		getData := &Data{}
+		if _, err := client.Get(data.Key, getData); err != nil {
+			b.Errorf("BenchmarkGet Get failed: %s\n", err.Error())
+		}
+		if getData.Key != data.Key {
+			b.Errorf("BenchmarkGet getData.Key was %s, expected %s\n", getData.Key, data.Key)
+		}
+		if getData.Data != data.Data {
+			b.Errorf("BenchmarkGet getData.Key was %s, expected %s\n", getData.Data, data.Data)
+		}
+	}
+	b.StopTimer()
+
+	if _, err := client.Remove(data.Key, cas); err != nil {
+		b.Fatalf("BenchmarkGet Remove failed: %s\n", err.Error())
+	}
+}
+
+// BenchmarkInsert tests the Insert functionality
+func BenchmarkInsert(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		data := &Data{
+			Key:  NewKey(),
+			Data: "InsertData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Fatalf("BenchmarkInsert Insert failed: %s\n", err.Error())
+		}
+
+		b.StopTimer()
+		if _, err := client.Remove(data.Key, cas); err != nil {
+			b.Fatalf("BenchmarkInsert Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkRemove tests the Remove functionality
+func BenchmarkRemove(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "RemoveData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Fatalf("BenchmarkRemove Insert failed: %s\n", err.Error())
+		}
+
+		b.StartTimer()
+		if _, err := client.Remove(data.Key, cas); err != nil {
+			b.Fatalf("BenchmarkRemove Remove failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+	}
+}
+
+// BenchmarkReplace tests the Replace functionality
+func BenchmarkReplace(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "ReplaceData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Fatalf("BenchmarkReplace Insert failed: %s\n", err.Error())
+		}
+
+		b.StartTimer()
+		dataReplace := &Data{
+			Key:  data.Key,
+			Data: "ReplacedData",
+		}
+
+		cas, err = client.Replace(data.Key, dataReplace, cas, 300)
+		if err != nil {
+			b.Fatalf("BenchmarkReplace Replace failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+
+		if _, err := client.Remove(data.Key, cas); err != nil {
+			b.Fatalf("BenchmarkReplace Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkTouch tests the Remove functionality
+func BenchmarkTouch(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "TouchData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Fatalf("BenchmarkTouch Insert failed: %s\n", err.Error())
+		}
+
+		b.StartTimer()
+		if _, err = client.Touch(data.Key, cas, 300); err != nil {
+			b.Fatalf("BenchmarkTouch Touch failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+
+		if _, err := client.Remove(data.Key, 0); err != nil {
+			b.Fatalf("BenchmarkTouch Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkUpsert tests the Remove functionality
+func BenchmarkUpsert(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		data := &Data{
+			Key:  NewKey(),
+			Data: "UpsertData",
+		}
+
+		cas, err := client.Upsert(data.Key, data, 300)
+		if err != nil {
+			b.Fatalf("BenchmarkUpsert Upsert failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+
+		if _, err := client.Remove(data.Key, cas); err != nil {
+			b.Fatalf("BenchmarkUpsert Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// EOF

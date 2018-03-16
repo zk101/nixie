@@ -1,0 +1,45 @@
+// WSmsg
+syntax = "proto3";
+
+// MsgType
+//
+// 0-9: System
+// 10: Telemetry
+// 11: Chat Control
+// 12: Chat Message
+//
+enum MsgType {
+  MSG_NULL = 0;
+  MSG_PINGPONG = 1;
+  MSG_LATENCY = 2;
+  MSG_SRVTIME = 3;
+  MSG_RESERVED_SYS_4 = 4;
+  MSG_RESERVED_SYS_5 = 5;
+  MSG_RESERVED_SYS_6 = 6;
+  MSG_RESERVED_SYS_7 = 7;
+  MSG_RESERVED_SYS_8 = 8;
+  MSG_RESERVED_SYS_9 = 9;
+  MSG_TELEMETRY = 10;
+  MSG_CHAT_CTL = 11;
+  MSG_CHAT_MSG = 12;
+}
+
+// MsgSec defines the level of security for a message
+enum MsgSec {
+  SEC_NONE = 0;
+  SEC_SIGN = 1;
+  SEC_CIPHER = 2;
+}
+
+// MsgWrap - Used for all WebSocket server communications, wraps all other message types
+message MsgWrap {
+  MsgType msg_type = 1;
+  MsgSec msg_sec = 2;
+  string msg_track = 3;
+  int64 msg_date = 4;
+  string msg_key = 5;
+  string msg_hash = 6;
+  bytes msg_data = 7;
+}
+
+// EOF

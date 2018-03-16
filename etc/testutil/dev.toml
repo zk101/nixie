@@ -1,0 +1,18 @@
+# home TestUtil Config
+[Controls]
+CAcertPath = "/home/zk101/Code/go/src/github.com/zk101/nixie/opt/cacert"
+
+[Couchbase]
+Cluster = "couchbase://localhost"
+Bucket = "nixieBuildTest"
+Pass = "password"
+
+[LDAP]
+Host = "localhost"
+Port = 636
+User = "cn=bind_nixie_rw,ou=system,dc=dummy,dc=org"
+Pass = "password"
+Base = "ou=nixie_dev,dc=dummy,dc=org"
+SSL = true
+
+# EOF

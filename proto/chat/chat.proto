@@ -1,0 +1,46 @@
+// Chat Messages
+syntax = "proto3";
+
+// ChatCtlType
+enum ChatCtlType {
+  CTL_TYPE_NULL = 0;
+  CTL_TYPE_LOGIN_STATUS = 1;
+  CTL_TYPE_MSG_STATUS = 2;
+  CTL_TYPE_SEARCH = 3;
+}
+
+// ChatCtlStatus
+enum ChatCtlStatus {
+  CTL_STATUS_NULL = 0;
+  CTL_STATUS_OKAY = 1;
+  CTL_STATUS_FAIL = 2;
+}
+
+// ChatMsgType
+enum ChatMsgType {
+  MSG_TYPE_NULL = 0;
+  MSG_TYPE_TEXT = 1;
+  MSG_TYPE_BINARY = 2;
+  MSG_TYPE_RECEIPT = 3;
+  MSG_TYPE_FRIEND = 4;
+  MSG_TYPE_FRIEND_REPLY = 5;
+}
+
+// ChatCtl
+message ChatCtl {
+  ChatCtlType type = 1;
+  ChatCtlStatus status = 2;
+  string userid = 3;
+  int64 date = 4;
+}
+
+// ChatMsg
+message ChatMsg {
+  ChatMsgType type = 1;
+  int64 date = 2;
+  string from = 3;
+  string to = 4;
+  bytes msg = 5;
+}
+
+// EOF

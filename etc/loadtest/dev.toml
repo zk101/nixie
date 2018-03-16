@@ -1,0 +1,55 @@
+# loadtest dev TOML Config File
+[Consul]
+Address = "localhost:8500"
+Scheme = "http"
+Datacenter = "global"
+Token = ""
+
+[Controls]
+CACertPath = ""
+OverrideConsul = false
+OverrideEnv = false
+PrefixConsul = "nixie/dev/loadtest/v1"
+PrefixEnv = "NIXIELOADTEST"
+ServiceConsul = true
+ServiceName = "nixie-loadtest"
+ServiceAddrFilter = "^((10\\.)|(192\\.168\\.)|(172\\.1[6-9]\\.)|(172\\.2[0-9]\\.)|(172\\.3[0-1]\\.))"
+ServiceTags = "env=dev"
+
+[HTTPD]
+Port = 10003
+Keepalive = false
+SSL = false
+SSLkey = ""
+SSLcert = ""
+
+[Log]
+Method = "gelf"
+LogLevel = "warn"
+ConsoleColour = false
+StackTrace = true
+StackTraceLevel = "error"
+Filename = "/tmp/testlog.file"
+FileMaxSize = 100
+FileMaxBackup = 5
+FileMaxAge = 5
+GELFhost = "localhost"
+GELFport = 12202
+GELFmaxChunkSize = 8154
+GELFcompression = "none"
+GELFappID = "loadtest"
+
+[Test]
+NumWorkers = 50
+PairCount = 1
+RPS = 10
+TestSelect = "all"
+TargetAuth = "https://localhost"
+
+[WebSocket]
+Host = "wss://localhost/ws"
+ReadBufferSize = 1024
+WriteBufferSize = 1024
+LoopTime = 50
+
+# EOF

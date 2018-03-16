@@ -1,0 +1,12 @@
+// Latency Messages
+syntax = "proto3";
+
+// client and server time are int64 using Unix Nanosec time (The number of nanoseconds elapsed since January 1, 1970 UTC)
+
+// Latency Msg
+message Latency {
+  int64 client_time = 1;
+  int64 server_time = 2;
+}
+
+// EOF

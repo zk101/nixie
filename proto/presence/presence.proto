@@ -1,0 +1,22 @@
+// Presence Messages
+syntax = "proto3";
+
+// Presence - Holds all presence data
+message Presence {
+  int64 date = 1;
+  string userid = 2;
+  string dn = 3;
+  string key = 4;
+  string sign = 5;
+  string cipher = 6;
+  string serverid = 7;
+  uint64 connectionid = 8;
+  map<string, bool> chatfriends = 9;
+}
+
+// PresenceID - Holds the presence id for a users current session and is stored in the Presence bucket using their username
+message PresenceID {
+  string key = 1;
+}
+
+// EOF

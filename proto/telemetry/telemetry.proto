@@ -1,0 +1,13 @@
+// Telemetry Messages
+syntax = "proto3";
+
+// TelemetryMsg
+message TelemetryMsg {
+  string user = 1;
+  string client = 2;
+  string version = 3;
+  int64 date = 4;
+  string data = 5;
+}
+
+// EOF

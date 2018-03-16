@@ -1,0 +1,314 @@
+package pool_test
+
+import (
+	"log"
+	"os"
+	"sync"
+	"testing"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/couchbase/gocb"
+	"github.com/zk101/nixie/lib/couchbase"
+	"github.com/zk101/nixie/lib/couchbase/pool"
+)
+
+// Globals
+var (
+	configCB   *couchbase.Config
+	configPool *pool.Config
+	client     *pool.Client
+)
+
+// KeyTrack
+type KeyTrack struct {
+	mu   sync.Mutex
+	keys map[string]gocb.Cas
+}
+
+// NewKeyTrack
+func NewKeyTrack() *KeyTrack {
+	return &KeyTrack{
+		keys: make(map[string]gocb.Cas, 0),
+	}
+}
+
+// Data provides a test struct
+type Data struct {
+	Key  string
+	Data string
+}
+
+// NewKey returns a uuid string
+func NewKey() string {
+	return uuid.NewV4().String()
+}
+
+// TestMain wraps all the tests and does setup things
+func TestMain(m *testing.M) {
+	// TestBucket needs to have atleast 256MB Ram Quota
+	configCB = &couchbase.Config{
+		Cluster: "couchbase://localhost",
+		Bucket:  "TestBucket",
+		Pass:    "password",
+	}
+
+	// QueueSize needs to be massive to absorb the benchmark
+	configPool = &pool.Config{
+		Min:       1,
+		Max:       10,
+		QueueSize: 1000000,
+		Timeout:   50,
+		Expiry:    30,
+	}
+
+	var err error
+	client, err = pool.InitClient(configPool, configCB)
+	if err != nil {
+		//log.Fatalf("client connect failed: %s\n", err.Error())
+		log.Printf("Couchbase Pool failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+	defer client.Stop()
+
+	os.Exit(m.Run())
+}
+
+// BenchmarkGet tests the Get functionality
+func BenchmarkGet(b *testing.B) {
+	keytrack := NewKeyTrack()
+
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "GetData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Errorf("BenchmarkGet Insert failed: %s\n", err.Error())
+		}
+
+		keytrack.keys[data.Key] = cas
+	}
+
+	b.ResetTimer()
+	wg := sync.WaitGroup{}
+	wg.Add(len(keytrack.keys))
+	for key, _ := range keytrack.keys {
+		go func(key string) {
+			getData := &Data{}
+			if _, err := client.Get(key, getData); err != nil {
+				b.Errorf("BenchmarkGet Get failed: %s\n", err.Error())
+			}
+			wg.Done()
+		}(key)
+	}
+	wg.Wait()
+	b.StopTimer()
+
+	for key, cas := range keytrack.keys {
+		if _, err := client.Remove(key, cas); err != nil {
+			b.Errorf("BenchmarkGet Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkInsert tests the Insert functionality
+func BenchmarkInsert(b *testing.B) {
+	keytrack := NewKeyTrack()
+
+	b.ResetTimer()
+	wg := sync.WaitGroup{}
+	wg.Add(b.N)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			data := &Data{
+				Key:  NewKey(),
+				Data: "InsertData",
+			}
+
+			cas, err := client.Insert(data.Key, data, 300)
+			if err != nil {
+				b.Errorf("BenchmarkInsert Insert failed: %s\n", err.Error())
+			}
+
+			keytrack.mu.Lock()
+			keytrack.keys[data.Key] = cas
+			keytrack.mu.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	b.StopTimer()
+
+	for key, cas := range keytrack.keys {
+		if _, err := client.Remove(key, cas); err != nil {
+			b.Errorf("BenchmarkInsert Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkRemove tests the Remove functionality
+func BenchmarkRemove(b *testing.B) {
+	keytrack := NewKeyTrack()
+
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "GetData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Errorf("BenchmarkRemove Insert failed: %s\n", err.Error())
+		}
+
+		keytrack.keys[data.Key] = cas
+	}
+
+	b.ResetTimer()
+	wg := sync.WaitGroup{}
+	wg.Add(len(keytrack.keys))
+	for key, cas := range keytrack.keys {
+		go func(key string, cas gocb.Cas) {
+			if _, err := client.Remove(key, cas); err != nil {
+				b.Errorf("BenchmarkRemove Remove failed: %s\n", err.Error())
+			}
+			wg.Done()
+		}(key, cas)
+	}
+	wg.Wait()
+	b.StopTimer()
+}
+
+// BenchmarkReplace tests the Replace functionality
+func BenchmarkReplace(b *testing.B) {
+	keytrack := NewKeyTrack()
+
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "GetData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Errorf("BenchmarkReplace Insert failed: %s\n", err.Error())
+		}
+
+		keytrack.keys[data.Key] = cas
+	}
+
+	b.ResetTimer()
+	wg := sync.WaitGroup{}
+	wg.Add(len(keytrack.keys))
+	for key, cas := range keytrack.keys {
+		go func(key string, cas gocb.Cas) {
+			var err error
+
+			dataReplace := &Data{
+				Key:  key,
+				Data: "ReplacedData",
+			}
+
+			if _, err = client.Replace(key, dataReplace, cas, 300); err != nil {
+				b.Errorf("BenchmarkReplace Replace failed: %s\n", err.Error())
+			}
+
+			// Can not update a map while also iterating through it, use cas 0 in remove
+			//keytrack.mu.Lock()
+			//keytrack.keys[key] = cas
+			//keytrack.mu.Unlock()
+			wg.Done()
+		}(key, cas)
+	}
+	wg.Wait()
+	b.StopTimer()
+
+	for key, _ := range keytrack.keys {
+		if _, err := client.Remove(key, 0); err != nil {
+			b.Errorf("BenchmarkReplace Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkTouch tests the Touch functionality
+func BenchmarkTouch(b *testing.B) {
+	keytrack := NewKeyTrack()
+
+	for i := 0; i < b.N; i++ {
+		data := &Data{
+			Key:  NewKey(),
+			Data: "GetData",
+		}
+
+		cas, err := client.Insert(data.Key, data, 300)
+		if err != nil {
+			b.Errorf("BenchmarkTouch Insert failed: %s\n", err.Error())
+		}
+
+		keytrack.keys[data.Key] = cas
+	}
+
+	b.ResetTimer()
+	wg := sync.WaitGroup{}
+	wg.Add(len(keytrack.keys))
+	for key, cas := range keytrack.keys {
+		go func(key string, cas gocb.Cas) {
+			if _, err := client.Touch(key, cas, 300); err != nil {
+				b.Errorf("BenchmarkTouch Replace failed: %s\n", err.Error())
+			}
+
+			// Can not update a map while also iterating through it, use cas 0 in remove
+			//keytrack.mu.Lock()
+			//keytrack.keys[key] = cas
+			//keytrack.mu.Unlock()
+			wg.Done()
+		}(key, cas)
+	}
+	wg.Wait()
+	b.StopTimer()
+
+	for key, _ := range keytrack.keys {
+		if _, err := client.Remove(key, 0); err != nil {
+			b.Errorf("BenchmarkTouch Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// BenchmarkUpsert tests the Upsert functionality
+func BenchmarkUpsert(b *testing.B) {
+	keytrack := NewKeyTrack()
+
+	b.ResetTimer()
+	wg := sync.WaitGroup{}
+	wg.Add(b.N)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			data := &Data{
+				Key:  NewKey(),
+				Data: "UpsertData",
+			}
+
+			cas, err := client.Upsert(data.Key, data, 300)
+			if err != nil {
+				b.Errorf("BenchmarkUpsert Insert failed: %s\n", err.Error())
+			}
+
+			keytrack.mu.Lock()
+			keytrack.keys[data.Key] = cas
+			keytrack.mu.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	b.StopTimer()
+
+	for key, cas := range keytrack.keys {
+		if _, err := client.Remove(key, cas); err != nil {
+			b.Errorf("BenchmarkUpsert Remove failed: %s\n", err.Error())
+		}
+	}
+}
+
+// EOF

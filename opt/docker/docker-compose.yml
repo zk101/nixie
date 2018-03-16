@@ -1,0 +1,195 @@
+# Dev Services
+
+# Notes:
+# You will need atleast 4GB of free RAM, as a number of these container run Java
+# Prometheus will need a Default Config and rules folder created prior to running
+# ElasticSearch requires vm.max_map_count  to be set to 262144 or greater, and will fail to start without it
+# Graylog will need its Web Endpoint set to its IP address, or its interface will not load
+
+# Interface URL:
+# Couchbase
+# http://172.18.0.10:8091
+# Consul
+# http://172.18.0.11:8500
+# Prometheus
+# http://172.18.0.12:9090
+# Grafana
+# http://172.18.0.13:3000
+# Graylog
+# http://172.18.0.16:9000
+
+version: '3'
+
+services:
+  # Couchbase
+  couchbase:
+    container_name: couchbase
+    image: couchbase:community-5.0.1
+    restart: unless-stopped
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.10
+  # Consul
+  consul:
+    container_name: consul
+    image: consul
+    restart: unless-stopped
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.11
+  # Prometheus
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    restart: unless-stopped
+    volumes:
+      - prometheus_data:/prometheus
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.12
+    links:
+      - consul
+    volumes:
+      - /usr/local/etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /usr/local/etc/prometheus/rules:/etc/prometheus/rules
+  # Grafana
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    restart: unless-stopped
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.13
+    links:
+      - prometheus
+  # Mongo
+  mongo:
+    container_name: mongo
+    image: mongo:3
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.14
+  # ElasticSearch
+  elasticsearch:
+    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.5.1
+    restart: unless-stopped
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.15
+    environment:
+      - http.host=0.0.0.0
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+  # Graylog
+  graylog:
+    container_name: graylog
+    image: graylog/graylog:2.3.0-1
+    restart: unless-stopped
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.16
+    environment:
+      - GRAYLOG_WEB_ENDPOINT_URI=http://172.18.0.16:9000/api
+    links:
+      - elasticsearch
+      - mongo
+  # RabbitMQ
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.17
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=password
+  # MariaDB
+  mariadb:
+    container_name: mariadb
+    image: mariadb
+    restart: unless-stopped
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - /usr/local/etc/mariadb:/etc/mysql/conf.d
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.18
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+  # OpenLDAP
+  openldap:
+    container_name: openldap
+    image: osixia/openldap:1.1.11
+    restart: unless-stopped
+    volumes:
+      - openldap_data:/var/lib/ldap
+      - openldap_config:/etc/ldap/slapd.d
+    networks:
+      dev_services:
+        ipv4_address: 172.18.0.19
+    environment:
+      LDAP_LOG_LEVEL: "0"
+      LDAP_ORGANISATION: "OrgName"
+      LDAP_DOMAIN: "dummy.org"
+      LDAP_BASE_DN: ""
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_CONFIG_PASSWORD: "config"
+      LDAP_READONLY_USER: "false"
+      #LDAP_READONLY_USER_USERNAME: "readonly"
+      #LDAP_READONLY_USER_PASSWORD: "readonly"
+      LDAP_RFC2307BIS_SCHEMA: "true"
+      LDAP_BACKEND: "hdb"
+      LDAP_TLS: "false"
+      #LDAP_TLS_CRT_FILENAME: "ldap.crt"
+      #LDAP_TLS_KEY_FILENAME: "ldap.key"
+      #LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+      #LDAP_TLS_ENFORCE: "false"
+      #LDAP_TLS_CIPHER_SUITE: "SECURE256:-VERS-SSL3.0"
+      #LDAP_TLS_PROTOCOL_MIN: "3.1"
+      #LDAP_TLS_VERIFY_CLIENT: "demand"
+      LDAP_REPLICATION: "false"
+      #LDAP_REPLICATION_CONFIG_SYNCPROV: "binddn="cn=admin,cn=config" bindmethod=simple credentials=$LDAP_CONFIG_PASSWORD searchbase="cn=config" type=refreshAndPersist retry="60 +" timeout=1 starttls=critical"
+      #LDAP_REPLICATION_DB_SYNCPROV: "binddn="cn=admin,$LDAP_BASE_DN" bindmethod=simple credentials=$LDAP_ADMIN_PASSWORD searchbase="$LDAP_BASE_DN" type=refreshAndPersist interval=00:00:00:10 retry="60 +" timeout=1 starttls=critical"
+      #LDAP_REPLICATION_HOSTS: "#PYTHON2BASH:['ldap://ldap.example.org','ldap://ldap2.example.org']"
+      KEEP_EXISTING_CONFIG: "false"
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+      LDAP_SSL_HELPER_PREFIX: "ldap"
+
+volumes:
+  couchbase_data:
+  consul_data:
+  graylog_data:
+  mariadb_data:
+  rabbitmq_data:
+  elasticsearch_data:
+  mongo_data:
+  prometheus_data:
+  grafana_data:
+  openldap_data:
+  openldap_config:
+
+networks:
+  dev_services:
+    driver: bridge
+    ipam:
+     config:
+       - subnet: 172.18.0.0/16
+
+# EOF

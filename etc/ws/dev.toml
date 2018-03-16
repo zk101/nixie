@@ -1,0 +1,85 @@
+# ws dev TOML Config File
+[AsyncRX]
+PoolSize = 10
+WorkerExpiry = 30
+
+[AsyncTX]
+PoolSizeMin = 1
+PoolSizeMax = 10
+QueueSize = 10
+ScheduleTimeout = 50
+WorkerExpiry = 30
+
+[CBpool]
+PoolSizeMin = 1
+PoolSizeMax = 10
+QueueSize = 10
+ScheduleTimeout = 50
+WorkerExpiry = 30
+
+[CBpresence]
+Cluster = "couchbase://localhost"
+Bucket = "nixiePresenceDev"
+User = "nixie"
+Pass = "password"
+
+[Consul]
+Address = "localhost:8500"
+Scheme = "http"
+Datacenter = "global"
+Token = ""
+
+[Controls]
+CACertPath = ""
+IOtimeout = 100
+ListenAddr = ""
+ListenPort = 10000
+SSL = false
+SSLkey = ""
+SSLcert = ""
+OverrideConsul = false
+OverrideEnv = false
+PrefixConsul = "nixie/dev/ws/v1"
+PrefixEnv = "NIXIEWS"
+PresenceExpiry = 300
+QueueSize = 20
+ServiceConsul = true
+ServiceName = "nixie-ws"
+ServiceAddrFilter = "^((10\\.)|(192\\.168\\.)|(172\\.1[6-9]\\.)|(172\\.2[0-9]\\.)|(172\\.3[0-1]\\.))"
+ServiceTags = "env=dev"
+WorkerCount = 20
+
+[GoPool]
+Min = 1
+Max = 10
+QueueSize = 10
+Timeout = 50
+Expiry = 30
+
+[HTTPD]
+Port = 10002
+Keepalive = false
+SSL = false
+SSLkey = ""
+SSLcert = ""
+
+[Log]
+Method = "gelf"
+LogLevel = "warn"
+ConsoleColour = false
+StackTrace = true
+StackTraceLevel = "error"
+Filename = "/tmp/testlog.file"
+FileMaxSize = 100
+FileMaxBackup = 5
+FileMaxAge = 5
+GELFhost = "localhost"
+GELFport = 12202
+GELFmaxChunkSize = 8154
+GELFcompression = "none"
+GELFappID = "ws"
+
+[RabbitMQ]
+URL = "amqp://test:password@localhost:5672/nixie_dev"
+
+# EOF

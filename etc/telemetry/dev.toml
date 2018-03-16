@@ -1,0 +1,59 @@
+# telemetry dev TOML Config File
+[Consul]
+Address = "localhost:8500"
+Scheme = "http"
+Datacenter = "global"
+Token = ""
+
+[Controls]
+CAcertPath = ""
+OverrideConsul = false
+OverrideEnv = false
+PrefixConsul = "nixie/dev/telemetry/v1"
+PrefixEnv = "NIXIETELEMETRY"
+ServiceConsul = true
+ServiceName = "nixie-telemetry"
+ServiceAddrFilter = "^((10\\.)|(192\\.168\\.)|(172\\.1[6-9]\\.)|(172\\.2[0-9]\\.)|(172\\.3[0-1]\\.))"
+ServiceTags = "env=dev"
+
+[HTTPD]
+Port = 10004
+Keepalive = false
+SSL = false
+SSLkey = ""
+SSLcert = ""
+
+[Log]
+Method = "gelf"
+LogLevel = "warn"
+ConsoleColour = false
+StackTrace = true
+StackTraceLevel = "error"
+Filename = "/tmp/testlog.file"
+FileMaxSize = 100
+FileMaxBackup = 5
+FileMaxAge = 5
+GELFhost = "localhost"
+GELFport = 12201
+GELFmaxChunkSize = 8154
+GELFcompression = "none"
+GELFappID = "telemetry"
+
+[RabbitMQ]
+URL = "amqp://test:password@localhost:5672/nixie_dev"
+
+[SQLmanager]
+DSN = "nixie-telemetry-man:password@tcp(localhost:3306)/nixie_telemetry"
+MaxIdle = 1
+MaxOpen = 10
+
+[SQLworker]
+DSN = "nixie-telemetry-rw:password@tcp(localhost:3306)/nixie_telemetry"
+MaxIdle = 1
+MaxOpen = 10
+
+[Worker]
+PoolSize = 10
+WorkerExpiry = 30
+
+# EOF

@@ -1,0 +1,3 @@
+/bin
+/proto/**/*.pb.go
+.DS_Store

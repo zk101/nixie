@@ -1,0 +1,219 @@
+package mariadb_test
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/zk101/nixie/lib/mariadb"
+)
+
+// Globals
+var (
+	config *mariadb.Config
+	client *mariadb.Client
+)
+
+// data holds the query content from the test table
+type data struct {
+	id       int64
+	text     string
+	created  time.Time
+	modified time.Time
+	status   int
+}
+
+// TestMain wraps all the tests and does setup things
+func TestMain(m *testing.M) {
+	config = &mariadb.Config{
+		DSN:     "root:password@tcp(172.18.0.18)/",
+		MaxIdle: 1,
+		MaxOpen: 50,
+	}
+
+	client = mariadb.NewClient(config)
+	if err := client.Connect(); err != nil {
+		log.Printf("MariaDB connection failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+	defer client.Close()
+
+	_, err := client.Exec("CREATE DATABASE IF NOT EXISTS `test` DEFAULT CHARACTER SET utf8;")
+	if err != nil {
+		log.Printf("Create Database failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+
+	config.DSN = "root:password@tcp(172.18.0.18)/test"
+	client.Close()
+	client = mariadb.NewClient(config)
+	if err := client.Connect(); err != nil {
+		log.Printf("MariaDB connection failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+	defer client.Close()
+
+	table := `CREATE TABLE IF NOT EXISTS test (
+		test_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+		test_string varchar(255) DEFAULT NULL,
+		test_created datetime NOT NULL DEFAULT current_timestamp(),
+		test_dt_modified datetime NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE current_timestamp(),
+		test_status tinyint(4) NOT NULL DEFAULT 0,
+		PRIMARY KEY (test_id),
+		KEY test_status (test_status)
+	) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;`
+
+	_, err = client.Exec(table)
+	if err != nil {
+		log.Printf("Create Table failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+
+	_, err = client.Exec("TRUNCATE TABLE test")
+	if err != nil {
+		log.Printf("Drop Table failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+
+	exit := m.Run()
+
+	_, err = client.Exec("DROP TABLE IF EXISTS test")
+	if err != nil {
+		log.Printf("Drop Table failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+
+	_, err = client.Exec("DROP DATABASE IF EXISTS test")
+	if err != nil {
+		log.Printf("Drop Table failed (dieing quietly): %s\n", err.Error())
+		os.Exit(0)
+	}
+
+	os.Exit(exit)
+}
+
+// TestSelect
+func BenchmarkSelect(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		result, err := client.Exec("INSERT INTO `test` (test_string, test_status) VALUES('Test Select Query', '1')")
+		if err != nil {
+			b.Fatalf("BenchmarkSelect Insert failed: %s\n", err.Error())
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			b.Fatalf("BenchmarkSelect LastInsertId failed: %s\n", err.Error())
+		}
+
+		b.StartTimer()
+		rows, err := client.Query(fmt.Sprintf("SELECT test_id, test_string, test_status FROM `test` WHERE test_id = '%d'", id))
+		if err != nil {
+			b.Errorf("BenchmarkSelect Query failed: %s\n", err.Error())
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var rowData data
+			if err := rows.Scan(&rowData.id, &rowData.text, &rowData.status); err != nil {
+				b.Error(err)
+			}
+			if rowData.id != id {
+				b.Error("row id does not equal 1")
+			}
+			if rowData.text != "Test Select Query" {
+				b.Error("row text is not 'Test Query'")
+			}
+			if rowData.status != 1 {
+				b.Error("row status does not equal 1")
+			}
+		}
+		if err := rows.Err(); err != nil {
+			b.Error(err)
+		}
+		b.StopTimer()
+
+		_, err = client.Exec(fmt.Sprintf("DELETE FROM `test` WHERE test_id = '%d'", id))
+		if err != nil {
+			b.Fatalf("BenchmarkSelect Delete failed: %s\n", err.Error())
+		}
+	}
+}
+
+// TestInsert
+func BenchmarkInsert(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		result, err := client.Exec("INSERT INTO `test` (test_string, test_status) VALUES('Test Insert Query', '1')")
+		if err != nil {
+			b.Errorf("BenchmarkInsert Insert failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+		id, err := result.LastInsertId()
+		if err != nil {
+			b.Errorf("BenchmarkInsert LastInsertId failed: %s\n", err.Error())
+		}
+
+		_, err = client.Exec(fmt.Sprintf("DELETE FROM `test` WHERE test_id = '%d'", id))
+		if err != nil {
+			b.Errorf("BenchmarkInsert Delete failed: %s\n", err.Error())
+		}
+	}
+}
+
+// TestDelete
+func BenchmarkDelete(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		result, err := client.Exec("INSERT INTO `test` (test_string, test_status) VALUES('Test Delete Query', '1')")
+		if err != nil {
+			b.Errorf("BenchmarkDelete Insert failed: %s\n", err.Error())
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			b.Errorf("BenchmarkDelete LastInsertId failed: %s\n", err.Error())
+		}
+
+		b.StartTimer()
+		_, err = client.Exec(fmt.Sprintf("DELETE FROM `test` WHERE test_id = '%d'", id))
+		if err != nil {
+			b.Errorf("BenchmarkDelete Delete failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+	}
+}
+
+// TestUpdate
+func BenchmarkUpdate(b *testing.B) {
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		result, err := client.Exec("INSERT INTO `test` (test_string, test_status) VALUES('Test Update Query', '1')")
+		if err != nil {
+			b.Errorf("BenchmarkDelete Insert failed: %s\n", err.Error())
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			b.Errorf("BenchmarkDelete LastInsertId failed: %s\n", err.Error())
+		}
+
+		b.StartTimer()
+		_, err = client.Exec(fmt.Sprintf("UPDATE `test` SET test_string = 'Updated Query' WHERE test_id = '%d'", id))
+		if err != nil {
+			b.Errorf("BenchmarkDelete Delete failed: %s\n", err.Error())
+		}
+		b.StopTimer()
+
+		_, err = client.Exec(fmt.Sprintf("DELETE FROM `test` WHERE test_id = '%d'", id))
+		if err != nil {
+			b.Errorf("BenchmarkDelete Delete failed: %s\n", err.Error())
+		}
+	}
+}
+
+// EOF

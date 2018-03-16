@@ -1,0 +1,17 @@
+# Test Config
+TestBool = true
+TestFloat32 = 32.32
+TestFloat64 = 64.64
+TestInt = 4
+TestInt8 = 8
+TestInt16 = 16
+TestInt32 = 32
+TestInt64 = 64
+TestUint = 4
+TestUint8 = 8
+TestUint16 = 16
+TestUint32 = 32
+TestUint64 = 64
+TestString = "Test String"
+
+# EOF

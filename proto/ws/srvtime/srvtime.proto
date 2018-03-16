@@ -1,0 +1,9 @@
+// Server Time Messages
+syntax = "proto3";
+
+// SrvTime Msg
+message SrvTime {
+  string server_time = 1;
+}
+
+// EOF
